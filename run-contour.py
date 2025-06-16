@@ -1,4 +1,4 @@
-from utils import *
+from my_utils.utils import *
 
 if __name__ == "__main__":
     folder_path = r'E:\ContinuousTunnelface\test\longbagou'

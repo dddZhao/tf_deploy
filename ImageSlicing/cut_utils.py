@@ -6,16 +6,14 @@ import matplotlib.patches as mpatches
 from matplotlib.font_manager import FontProperties
 font = FontProperties(fname='SimHei.ttf')
 
-import os
 import json
-from shapely.geometry import Point, Polygon
-from PIL import Image
+from shapely.geometry import Polygon
 
-from trt import *
+from my_utils.trt import *
 import shutil
 
 def tunnelface_segmentation(input_file):
-    engine = load_engine('model/seg.engine')
+    engine = load_engine('../model/seg.engine')
     img, orig_size = infer_seg(engine, input_file)
 
     long_edge = max(orig_size[0], orig_size[1])

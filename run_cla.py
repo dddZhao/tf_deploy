@@ -1,4 +1,4 @@
-from utils_forcla import *
+from my_utils.utils_forcla import *
 import argparse
 
 def main(img_path):

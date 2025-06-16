@@ -1,9 +1,6 @@
-import os
-import cv2
 import shutil
 import argparse
-from PIL import Image
-from utils import *
+from my_utils.utils import *
 
 
 def delete_json(folder_path):

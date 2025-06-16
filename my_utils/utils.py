@@ -13,7 +13,7 @@ from trt import *
 from utils_Selectimg import *
 
 def tunnelface_segmentation(input_file):
-    engine = load_engine('model/seg.engine')
+    engine = load_engine('../model/seg.engine')
     img,orig_size = infer_seg(engine, input_file)
 
     img = img.resize((orig_size[0],orig_size[1]),Image.Resampling.LANCZOS)
@@ -134,7 +134,7 @@ def process_folder(img_path):
 
 
 def classify_posui(img_path):  
-    engine = load_engine('model/posui.engine')
+    engine = load_engine('../model/posui.engine')
     dir_name = (img_path.split('/')[-1]).split('.')[0]+ '_select'
     img_dir = os.path.join(os.path.dirname(img_path),dir_name)
 
@@ -233,7 +233,7 @@ def show_result_posui(img_path):
 # display classification results
 def show_result_water(img_path):
 
-    engine = load_engine('model/waterseg.engine')
+    engine = load_engine('../model/waterseg.engine')
     img_seg, orig_size = infer_seg(engine, img_path)
 
     img_seg = img_seg.resize((orig_size[0],orig_size[1]),Image.Resampling.LANCZOS)
@@ -289,14 +289,14 @@ def show_result_water(img_path):
 
 
 def classify_YTLX(img_path):  
-    engine = load_engine('model/YTLX.engine')
+    engine = load_engine('../model/YTLX.engine')
     output = infer_cla2(engine, img_path)
     pred = np.argmax(output)
     return(pred)
 
 
 def classify_FHCD(img_path):  
-    engine = load_engine('model/FHCD.engine')
+    engine = load_engine('../model/FHCD.engine')
     output = infer_cla2(engine, img_path)
     pred = np.argmax(output)
     return(pred)

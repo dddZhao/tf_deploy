@@ -101,7 +101,7 @@ def process_folder(img_path):
 
 
 def classify_posui(img_path):
-    engine = load_engine('model/posui.engine')
+    engine = load_engine('../model/posui.engine')
     dir_name = (img_path.split('/')[-1]).split('.')[0] + '_select'
     img_dir = os.path.join(os.path.dirname(img_path), dir_name)
 
