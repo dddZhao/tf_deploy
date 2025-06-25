@@ -1,56 +1,46 @@
+import sys
+import os
+# 将项目根目录添加到 Python 路径
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import shutil
 import argparse
-from my_utils.utils import *
-
-
-def delete_json(folder_path):
-    for filename in os.listdir(folder_path):
-        if filename.endswith('.json'):
-            file_path = os.path.join(folder_path, filename)
-            try:
-                os.remove(file_path)
-            except Exception as e:
-                print(f"Error: {e}")
+from utils.utils import *
 
 def main(img_path):
+    """
+    输入图片，output文件夹中输出_seg.png,_posui.png,_water.png
+    :param img_path: 路径中不能有“_”
+    :return:
+    """
     tunnelface_segmentation(img_path)
-    calculate_and_save_images(img_path)
-    process_folder(img_path)
-    classify_posui(img_path)
+    show_seg(img_path)
+
+    tile_size = (256, 256)
+    split_images(img_path, tile_size)
+    select_images(img_path, tile_size)
+    classify_posui(img_path, tile_size)
     show_result_posui(img_path)
+
     show_result_water(img_path)
-    
-    # 定义分类结果的映射关系
+
+    YTLX = classify_YTLX(img_path)
+    FHCD = classify_FHCD(img_path)
+
     YTLX_MAPPING = {
         0: "岩浆岩",
         1: "沉积岩",
         2: "变质岩"
     }
-    
+
     FHCD_MAPPING = {
         0: "未风化",
         1: "弱风化",
         2: "强风化"
     }
-    
-    YTLX = classify_YTLX(img_path)
-    FHCD = classify_FHCD(img_path)
-    
-    # 打印分类结果
-    print(f"岩石类型 (YTLX): {YTLX_MAPPING.get(YTLX, '未知')}")
-    print(f"风化程度 (FHCD): {FHCD_MAPPING.get(FHCD, '未知')}")
-    
-    folder_path = img_path.split('.')[0]
-    folder_path2 = img_path.split('.')[0] + '_select'
-    
-    try:
-        shutil.rmtree(folder_path)
-        shutil.rmtree(folder_path2)
-    except Exception as e:
-        print(f"Error: {e}")
-    
-    folder_path = img_path.split('/')[0]
-    delete_json(folder_path)
+
+    print(f"岩体类型: {YTLX_MAPPING.get(YTLX, '未知')}")
+    print(f"风化程度: {FHCD_MAPPING.get(FHCD, '未知')}")
 
 # 设置命令行参数解析
 if __name__ == "__main__":

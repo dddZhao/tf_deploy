@@ -1,2 +1,6 @@
+model
 *.engine
 *.zip
+*.json
+*.png
+*.jpg
