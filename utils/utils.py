@@ -8,7 +8,6 @@ from typing import Optional, Tuple
 import shutil
 import logging
 
-
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.font_manager import FontProperties
@@ -25,8 +24,7 @@ def tunnelface_segmentation(input_file):
 
     engine = load_engine(model_path)
     img, orig_size = infer_seg(engine, input_file)
-
-    img = img.resize((orig_size[0], orig_size[1]), Image.Resampling.LANCZOS)
+    img = img.resize(orig_size, Image.Resampling.LANCZOS)
     array = np.array(img)
 
     contours, _ = cv2.findContours(array, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -39,13 +37,14 @@ def tunnelface_segmentation(input_file):
       "imageHeight": orig_size[1],
       "imageWidth": orig_size[0]
     }
+    min_contour_area = orig_size[0] * orig_size[1] * 0.05
     for cnt in contours:
-        area = cv2.contourArea(cnt)
-        if area > (orig_size[1]*orig_size[0] // 20):
-            shape = {"label": "TunnelFace",
-                     "points": cnt.reshape(-1,2).tolist(),
-                     "shape_type": "polygon"
-                    }
+        if cv2.contourArea(cnt) >= min_contour_area:
+            shape = {
+                "label": "TunnelFace",
+                "points": cnt.squeeze().tolist(),
+                "shape_type": "polygon"
+            }
             result["shapes"].append(shape)
     with open(output_json_path, 'w') as f:
         json.dump(result, f)
@@ -169,7 +168,6 @@ def select_images(
 
     logging.info(f"筛选完成: {selected_count}/{total_valid_images} 图片被选中")
 
-
 def classify_posui(
         img_path: str,
         tile_size: Tuple[int, int] = (512, 512)
@@ -246,7 +244,6 @@ def classify_posui(
 
     logging.info(f"结构分类完成，共处理{len(shapes)}个切片")
 
-
 LABEL_MAP = {
     0: ((139, 250, 146), 'Block', '完整结构'),
     1: ((201, 212, 74), 'Layered', '层状结构'),
@@ -254,7 +251,6 @@ LABEL_MAP = {
     3: ((214, 135, 86), 'Fractured', '碎裂结构'),
     4: ((245, 95, 115), 'Granular', '散体结构')
 }
-
 
 def show_result_posui(
         img_path: str
@@ -355,7 +351,7 @@ def show_result_water(
     engine = load_engine(model_path)
     img_seg, orig_size = infer_seg(engine, img_path)
 
-    img_seg = img_seg.resize((orig_size[0],orig_size[1]),Image.Resampling.LANCZOS)
+    img_seg = img_seg.resize(orig_size,Image.Resampling.LANCZOS)
     array_seg = np.array(img_seg)
 
     # 创建彩色分割图
@@ -409,7 +405,6 @@ def show_result_water(
     fig.savefig(str(output_path), bbox_inches='tight', dpi=150)
     plt.close(fig)
 
-
 def classify_YTLX(img_path):
     model_path = os.path.join(get_project_root(), "model", "cla_ytlx.engine")
     engine = load_engine(model_path)
@@ -417,21 +412,12 @@ def classify_YTLX(img_path):
     pred = np.argmax(output)
     return(pred)
 
-
 def classify_FHCD(img_path):
     model_path = os.path.join(get_project_root(), "model", "cla_fhcd.engine")
     engine = load_engine(model_path)
     output = infer_cla2(engine, img_path)
     pred = np.argmax(output)
     return(pred)
-
-# display classification results
-
-
-
-
-
-
 
 
 
