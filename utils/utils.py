@@ -48,6 +48,7 @@ def tunnelface_segmentation(input_file):
             result["shapes"].append(shape)
     with open(output_json_path, 'w') as f:
         json.dump(result, f)
+    return output_json_path
 
 def show_seg(img_path):
     image = cv2.imread(img_path)

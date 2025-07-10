@@ -111,7 +111,7 @@ def process_image(image_path, json_path, target_path, width=4200, no_plot=False)
                src_points, target_points, center_target, radius_target, dst_points)
 
     # 应用透视变换
-    transformed_img = apply_perspective_transform(image, src_points, dst_points)
+    transformed_img, H = apply_perspective_transform(image, src_points, dst_points)
 
     # 返回变换后的图像和路径信息
     return transformed_img, image, arc_points, center, radius, m, src_points

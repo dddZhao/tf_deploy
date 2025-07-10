@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
 
-import cv2
 import json
 import matplotlib.pyplot as plt
 
@@ -60,7 +59,7 @@ def apply_perspective_transform(image, src_points, dst_points):
         borderMode=cv2.BORDER_CONSTANT,
         borderValue=(0, 0, 0)  # 黑色填充
     )
-    return transformed_image
+    return transformed_image, H
 
 def transform_line_parameters(m, c, src_points, dst_points, image_width):
     """ 变换直线参数 """

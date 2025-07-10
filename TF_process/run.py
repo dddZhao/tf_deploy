@@ -6,7 +6,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import time
 import argparse
 from utils.utils import *
+from arc_matching.transform import transform_image
 
+PROJECT_ROOT = Path(__file__).parent.parent
 
 def main(img_path, tile_size=(256, 256)):
     # 全局日志配置
@@ -27,18 +29,28 @@ def main(img_path, tile_size=(256, 256)):
         logging.info(f"开始处理图像: {img_path}")
 
         # 处理流程
-        tunnelface_segmentation(img_path)
+        output_json_path = tunnelface_segmentation(img_path)
+
+        stem = Path(img_path).stem
+        output_image_path = str(PROJECT_ROOT / "data" / "output" / f"{stem}_transformed.png")
+
+        transformed_img_path = transform_image(
+            input_image_path=img_path,
+            input_json_path=output_json_path,
+            output_image_path=output_image_path
+        )
+
         show_seg(img_path)
 
-        split_images(img_path, tile_size)
-        select_images(img_path, tile_size)
-        classify_posui(img_path, tile_size)
-        show_result_posui(img_path)
-        show_result_water(img_path)
+        split_images(transformed_img_path, tile_size)
+        select_images(transformed_img_path, tile_size)
+        classify_posui(transformed_img_path, tile_size)
+        show_result_posui(transformed_img_path)
+        show_result_water(transformed_img_path)
 
         # 分类结果
-        YTLX = classify_YTLX(img_path)
-        FHCD = classify_FHCD(img_path)
+        YTLX = classify_YTLX(transformed_img_path)
+        FHCD = classify_FHCD(transformed_img_path)
 
         # 分类映射
         YTLX_MAPPING = {0: "岩浆岩", 1: "沉积岩", 2: "变质岩"}
