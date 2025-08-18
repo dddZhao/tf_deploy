@@ -10,7 +10,7 @@ from arc_matching.transform import transform_image
 
 PROJECT_ROOT = Path(__file__).parent.parent
 
-def main(img_path, tile_size=(256, 256)):
+def main(img_path, tile_size=(512, 512)):
     # 全局日志配置
     logging.basicConfig(
         level=logging.INFO,
@@ -77,7 +77,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--tile_size', type=int, nargs=2,
                         metavar=('WIDTH', 'HEIGHT'),
-                        default=[256, 256],
+                        default=[512, 512],
                         help="切片尺寸 (默认: %(default)s)")
 
     parser.add_argument('--log_level', default='INFO',

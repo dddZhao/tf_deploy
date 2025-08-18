@@ -1,10 +1,10 @@
-
 import numpy as np
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 import cv2
 import os
 import json
+from PIL import Image
 from matplotlib.font_manager import FontProperties
 
 # 设置中文字体
@@ -58,6 +58,24 @@ def resize_image_and_points(image_path, json_path, target_width, target_height):
 
     return resized_image, scaled_points[0]
 
+def cv2_imread(file_path):
+    cv_img = cv2.imdecode(np.fromfile(file_path,dtype=np.uint8),-1)
+    return cv_img
+
+def save_image_with_pillow(output_path, img):
+    """
+    使用Pillow保存图像，最佳中文路径支持方案
+    :param output_path: 包含中文的目标路径
+    :param img: 要保存的图像数据 (OpenCV BGR格式)
+    """
+    # 转换BGR到RGB
+    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+    # 直接使用Pillow保存（完全支持Unicode路径）
+    pil_img = Image.fromarray(img_rgb)
+
+    # 保存图像
+    pil_img.save(output_path)
 
 def resize_image_and_points_by_width(image_path, json_path, target_width):
     """
@@ -72,7 +90,7 @@ def resize_image_and_points_by_width(image_path, json_path, target_width):
         tuple: (缩放后的图像, 缩放后的点列表)
     """
     # 读取原始图像
-    original_image = cv2.imread(image_path)
+    original_image = cv2_imread(image_path)
     if original_image is None:
         raise ValueError(f"无法读取图像: {image_path}")
 
@@ -528,7 +546,8 @@ def save_transformed_images(transformed_img, image_path, dir_name, target_points
 
     # 1. 保存原始变换图像
     output_path1 = os.path.join(dir_name, f"{base_name_without_ext}_transformed.png")
-    cv2.imwrite(output_path1, transformed_img)
+    print(output_path1)
+    save_image_with_pillow(output_path1, transformed_img)
 
     if target_points is not None:
         # 创建mask
@@ -561,7 +580,7 @@ def save_transformed_images(transformed_img, image_path, dir_name, target_points
         # 设置mask区域外的部分为透明
         transparent_img[:, :, 3] = mask
         output_path2 = os.path.join(dir_name, f"clear_{base_name_without_ext}_transformed.png")
-        cv2.imwrite(output_path2, transparent_img)
+        save_image_with_pillow(output_path2, transparent_img)
 
         # 3. 保存白色背景版本
         white_img = transformed_img.copy()
@@ -570,6 +589,6 @@ def save_transformed_images(transformed_img, image_path, dir_name, target_points
         # 将背景设置为白色
         white_img[inverted_mask == 255] = [255, 255, 255]
         output_path3 = os.path.join(dir_name, f"white_{base_name_without_ext}_transformed.png")
-        cv2.imwrite(output_path3, white_img)
+        save_image_with_pillow(output_path3, white_img)
 
 

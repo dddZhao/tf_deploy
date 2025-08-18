@@ -87,6 +87,6 @@ def transform_image(input_image_path, input_json_path, output_image_path,
         json.dump(annotation, f, indent=4)
 
     # 10. 保存变换后的图像
-    cv2.imwrite(output_image_path, transformed_img)
+    save_image_with_pillow(output_image_path, transformed_img)
 
     return output_image_path

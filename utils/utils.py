@@ -17,6 +17,10 @@ from .trt import *
 from .utils_Selectimg import *
 from .paths import *
 
+def cv2_imread(file_path):
+    cv_img = cv2.imdecode(np.fromfile(file_path,dtype=np.uint8),-1)
+    return cv_img
+
 def tunnelface_segmentation(input_file):
     # 路径设置
     model_path = os.path.join(get_project_root(), "model", "seg_tf.engine")
@@ -51,7 +55,7 @@ def tunnelface_segmentation(input_file):
     return output_json_path
 
 def show_seg(img_path):
-    image = cv2.imread(img_path)
+    image = cv2_imread(img_path)
     output_path = get_output_path(img_path, suffix="_seg")
     TF_filepath = get_output_json_path(img_path, suffix="_seg")
 
@@ -130,6 +134,7 @@ def select_images(
 
     # 2. 加载JSON标注
     json_path = get_output_json_path(img_path, suffix="_seg")
+    #json_path = img_path.replace(".png", "_seg.json")
     try:
         json_data = parse_json(json_path)
     except Exception as e:
@@ -188,7 +193,7 @@ def classify_posui(
         raise FileNotFoundError(f"切片元数据未找到: {metadata_path}")
 
     engine = load_engine(model_path)
-    original_image = cv2.imread(img_path)
+    original_image = cv2_imread(img_path)
     original_height, original_width = original_image.shape[:2]
 
     shapes = []
@@ -271,7 +276,7 @@ def show_result_posui(
         logging.error(f"关键文件缺失: {str(e)}")
         return
 
-    image = cv2.imread(str(img_path))
+    image = cv2_imread(str(img_path))
     if image is None:
         logging.error(f"无法读取图像: {img_path}")
         return
@@ -361,7 +366,7 @@ def show_result_water(
     for value, color in WATER_COLOR_MAP.items():
         seg_color[array_seg == value] = color
 
-    img = cv2.imread(img_path)
+    img = cv2_imread(img_path)
     img_array = np.array(img)
     with open(json_path, "r", encoding="utf-8") as f:
         data = json.load(f)
