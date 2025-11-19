@@ -16,6 +16,7 @@ font = FontProperties(fname='SimHei.ttf')
 from .trt import *
 from .utils_Selectimg import *
 from .paths import *
+from .cn_cv import *
 
 def cv2_imread(file_path):
     cv_img = cv2.imdecode(np.fromfile(file_path,dtype=np.uint8),-1)
@@ -78,6 +79,31 @@ def show_seg(img_path):
     fig.savefig(output_path, bbox_inches='tight')
     plt.close(fig)
 
+    return output_path
+
+def mask_seg(img_path, suffix="_seg"):
+    # 读取原始图像
+    image = cv2_imread(img_path)  # 假设返回BGR格式
+    output_path = get_output_path(img_path, suffix=suffix)
+    TF_filepath = get_output_json_path(img_path, suffix=suffix)
+
+    mask = np.zeros(image.shape[:2], dtype=np.uint8)
+
+    # 解析JSON标注数据
+    with open(TF_filepath, 'r', encoding='utf-8') as f:
+        data_tf = json.load(f)
+
+    # 填充掌子面区域为白色（255）
+    for shape in data_tf["shapes"]:
+        points = np.array(shape['points'], dtype=np.int32)
+        cv2.fillPoly(mask, [points], color=255)
+
+    result = cv2.bitwise_and(image, image, mask=mask)
+
+    # 保存结果图像
+    cv2.imwrite(output_path, result)
+    return output_path
+
 def split_images(
     img_path: str,
     tile_size: Tuple[int, int] = (512, 512)
@@ -108,9 +134,10 @@ def split_images(
             tile_metadata[filename] = (row, col)
 
     # 保存元数据到JSON
-    metadata_path = output_dir / f"{base_name}_tile_metadata.json"
-    with open(metadata_path, 'w') as f:
-        json.dump(tile_metadata, f)
+    #metadata_path = output_dir / f"{base_name}_tile_metadata.json"
+    #with open(metadata_path, 'w') as f:
+    #    json.dump(tile_metadata, f)
+    return output_dir
 
 # filter the images in the TF
 def select_images(
@@ -133,7 +160,8 @@ def select_images(
         raise FileNotFoundError(f"切片元数据未找到: {metadata_path}")
 
     # 2. 加载JSON标注
-    json_path = get_output_json_path(img_path, suffix="_seg")
+    json_path = img_path.replace("_black_transformed.png", ".png")
+    json_path = get_output_json_path(json_path, suffix="_seg")
     #json_path = img_path.replace(".png", "_seg.json")
     try:
         json_data = parse_json(json_path)

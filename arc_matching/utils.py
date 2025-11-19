@@ -161,7 +161,123 @@ def evenly_distribute_points(points, num_points=100):
     return list(zip(x_new, y_new))
 
 
-def find_bottom_edge(points, tolerance=5, bottom_fraction=0.2, max_slope=np.tan(np.radians(45))):
+def find_bottom_edge(points, tolerance=1, max_slope=np.tan(np.radians(45)), max_iter=10):
+    """自适应迭代优化算法寻找底边"""
+
+    y_values = points[:, 1]
+
+    # 初始候选点集：底部30%的点
+    y_threshold = np.percentile(y_values, 70)  # 底部30%的点
+    candidate_points = points[y_values >= y_threshold]
+
+    best_score = -np.inf
+    best_line = (None, None)
+    best_points = []
+
+    for iter in range(max_iter):
+        if len(candidate_points) < 2:
+            break
+
+        # 拟合直线
+        x_fit = candidate_points[:, 0]
+        y_fit = candidate_points[:, 1]
+        A = np.vstack([x_fit, np.ones(len(x_fit))]).T
+        m, c = np.linalg.lstsq(A, y_fit, rcond=None)[0]
+
+        # 检查斜率约束
+        if abs(m) > max_slope:
+            # 斜率过大，扩大候选区域
+            y_threshold = np.percentile(y_values, 70 - (iter + 1) * 5)
+            candidate_points = points[y_values >= y_threshold]
+            continue
+
+        # 计算所有点到直线的距离
+        distances = np.abs(m * points[:, 0] - points[:, 1] + c) / np.sqrt(m ** 2 + 1)
+
+        # 计算当前拟合的质量分数
+        # 1. 内点比例（距离 < tolerance）
+        inlier_mask = distances < tolerance
+        inlier_points = points[inlier_mask]
+
+        if len(inlier_points) == 0:
+            continue
+
+        # 2. 内点连续性（底边点应形成连续线段）
+        inlier_x = inlier_points[:, 0]
+        x_range = np.max(inlier_x) - np.min(inlier_x)
+        continuity_score = x_range / len(inlier_x) if len(inlier_x) > 0 else 0
+
+        # 3. 内点密度（底边点应密集分布）
+        density_score = len(inlier_points) / (x_range + 1e-5)  # 避免除以零
+
+        # 综合评分
+        inlier_ratio = len(inlier_points) / len(points)
+        score = inlier_ratio * 0.5 + continuity_score * 0.3 + density_score * 0.2
+
+        # 更新最佳拟合
+        if score > best_score:
+            best_score = score
+            best_line = (m, c)
+            best_points = inlier_points
+
+        # 调整候选点集：保留距离小于2倍tolerance的点
+        candidate_mask = distances < 2 * tolerance
+        candidate_points = points[candidate_mask]
+
+        # 如果没有改进空间，提前终止
+        if len(candidate_points) == len(best_points):
+            break
+
+    # 如果没有找到有效拟合，使用备选方案
+    if best_score == -np.inf:
+        # 备选方案1：使用底部5%的点作为底边点
+        y_threshold = np.percentile(y_values, 95)  # 底部5%的点
+        bottom_points = points[y_values >= y_threshold]
+
+        if len(bottom_points) > 1:
+            # 对这些点进行直线拟合
+            x_fit = bottom_points[:, 0]
+            y_fit = bottom_points[:, 1]
+            A = np.vstack([x_fit, np.ones(len(x_fit))]).T
+            m, c = np.linalg.lstsq(A, y_fit, rcond=None)[0]
+
+            # 计算所有点到直线的距离
+            distances = np.abs(m * points[:, 0] - points[:, 1] + c) / np.sqrt(m ** 2 + 1)
+
+            # 选择距离小于tolerance的点作为底边点
+            inlier_mask = distances < tolerance
+            best_points = points[inlier_mask]
+
+            # 按x排序最终结果
+            bottom_edge_points = best_points[best_points[:, 0].argsort()]
+            return bottom_edge_points.tolist(), m, c
+
+        # 备选方案2：返回y值最大的点作为底边点
+        else:
+            # 取y值最大的10个点
+            sorted_indices = np.argsort(y_values)[::-1][:10]
+            best_points = points[sorted_indices]
+
+            # 对这些点进行直线拟合
+            if len(best_points) > 1:
+                x_fit = best_points[:, 0]
+                y_fit = best_points[:, 1]
+                A = np.vstack([x_fit, np.ones(len(x_fit))]).T
+                m, c = np.linalg.lstsq(A, y_fit, rcond=None)[0]
+
+                # 按x排序最终结果
+                bottom_edge_points = best_points[best_points[:, 0].argsort()]
+                return bottom_edge_points.tolist(), m, c
+
+            # 最后备选方案：返回空结果
+            return [], None, None
+
+    # 按x排序最终结果
+    m, c = best_line
+    bottom_edge_points = best_points[best_points[:, 0].argsort()]
+
+    return bottom_edge_points.tolist(), m, c
+def find_bottom_edge_old2(points, tolerance=5, bottom_fraction=0.2, max_slope=np.tan(np.radians(45))):
     """
     找出相对底边：从靠近图像底部的一批点中，拟合一条不超过 45° 倾斜的直线，
     然后找出距离这条线在 tolerance 范围内的所有点作为 bottom_edge。

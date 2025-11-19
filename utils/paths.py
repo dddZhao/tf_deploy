@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent.parent
+#PROJECT_ROOT = Path(r"E:\crack_dataset")
 
 def get_project_root():
     """返回项目根目录"""
@@ -11,10 +12,19 @@ def get_input_path(image_name):
 
 def get_output_json_path(image_name, suffix="_seg"):
     stem = Path(image_name).stem
-    return PROJECT_ROOT / "data" / "output" / f"{stem}{suffix}.json"
+    if suffix:
+        filename = f"{stem}{suffix}.json"
+    else:
+        filename = f"{stem}.json"
+    return PROJECT_ROOT / "data" / "output" / filename
+
 def get_output_path(image_name, suffix="_seg"):
     stem = Path(image_name).stem
-    return PROJECT_ROOT / "data" / "output" / f"{stem}{suffix}.png"
+    if suffix:
+        filename = f"{stem}{suffix}.png"
+    else:
+        filename = f"{stem}.png"
+    return PROJECT_ROOT / "data" / "output" / filename
 
 def get_output_dir(
         image_name: str,

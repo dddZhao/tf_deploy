@@ -1,6 +1,6 @@
 from .utils import *
-from .ImageTransform import apply_perspective_transform, find_circle_points
-
+from .ImageTransform import apply_perspective_transform, find_circle_points, transform_line_params
+from .cn_cv import *
 
 def round_point(pt, digits=6):
     return tuple(round(coord, digits) for coord in pt)
@@ -40,7 +40,8 @@ def transform_image(input_image_path, input_json_path, output_image_path,
 
     # 4. 执行处理流程（均匀分布点、检测底边等）
     uniform_points = evenly_distribute_points(points, num_points=100)
-    bottom_edge, m, c = find_bottom_edge(uniform_points, tolerance=100)
+    uniform_points = np.array(uniform_points)
+    bottom_edge, m, c = find_bottom_edge(uniform_points, tolerance=200)
 
     rounded_uniform_points = [round_point(pt) for pt in uniform_points]
     rounded_bottom_edge = set(round_point(pt) for pt in bottom_edge)
@@ -87,6 +88,47 @@ def transform_image(input_image_path, input_json_path, output_image_path,
         json.dump(annotation, f, indent=4)
 
     # 10. 保存变换后的图像
-    save_image_with_pillow(output_image_path, transformed_img)
+    output_path1 = output_image_path
+    cv_imwrite_cn(output_path1, transformed_img)
 
-    return output_image_path
+    if target_points is not None:
+        # 创建mask
+        height, width = transformed_img.shape[:2]
+        mask = np.zeros((height, width), dtype=np.uint8)
+        target_points_array = np.array([target_points], dtype=np.int32)
+        cv2.fillPoly(mask, target_points_array, 255)
+
+        if m is not None and c is not None:
+            m, c = transform_line_params(m, c, H)
+
+            # 创建直线以下的mask
+            line_mask = np.zeros((height, width), dtype=np.uint8)
+
+            y_left = int(np.clip(m * 0 + c, 0, height - 1))
+            y_right = int(np.clip(m * (width - 1) + c, 0, height - 1))
+
+            poly_points = np.array([[
+                [0, y_left],  # 左上（直线）
+                [width - 1, y_right],  # 右上（直线）
+                [width - 1, height - 1],  # 右下
+                [0, height - 1],  # 左下
+            ]], dtype=np.int32)
+            cv2.fillPoly(line_mask, poly_points, 255)
+
+            mask = cv2.bitwise_and(mask, cv2.bitwise_not(line_mask))
+
+        # 2. 保存透明背景版本
+        # 创建BGRA图像(带alpha通道)
+        transparent_img = cv2.cvtColor(transformed_img, cv2.COLOR_BGR2BGRA)
+        # 设置mask区域外的部分为透明
+        transparent_img[:, :, 3] = mask
+        output_path2 = output_image_path.replace("_transformed.png", "_clear_transformed.png")
+        cv_imwrite_cn(output_path2, transparent_img)
+
+        black_img = transformed_img.copy()
+        inverted_mask = cv2.bitwise_not(mask)
+        black_img[inverted_mask == 255] = 0  # 使用标量0广播赋值，效率更高
+        output_path3 = output_image_path.replace("_transformed.png", "_black_transformed.png")
+        cv_imwrite_cn(output_path3, black_img)
+
+    return output_path3

@@ -10,7 +10,7 @@ def round_point(pt, digits=6):
     return tuple(round(coord, digits) for coord in pt)
 def main():
     # 设置目标文件夹路径
-    folder_path = r"E:\ContinuousTunnelface\test\longbagou"
+    folder_path = r"E:\crack_dataset\tf\新建文件夹"
 
     # 获取所有 .jpg 文件路径
     jpg_files = glob.glob(os.path.join(folder_path, "*.jpg"))

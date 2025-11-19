@@ -6,11 +6,11 @@ import time
 import argparse
 from utils.utils import *
 from arc_matching.transform import transform_image
+from utils.split_forlabel import clean_tiles
 
 # 配置项目根路径
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.append(str(PROJECT_ROOT))
-
 
 def process_image(img_path, tile_size, log_level='INFO'):
     """处理单个图像直到select_images步骤"""
@@ -19,17 +19,18 @@ def process_image(img_path, tile_size, log_level='INFO'):
 
     # 执行核心处理流程
     output_json_path = tunnelface_segmentation(img_path)
-    # stem = Path(img_path).stem
-    # output_image_path = str(PROJECT_ROOT / "data" / "output" / f"{stem}_transformed.png")
-    #
-    # transformed_img_path = transform_image(
-    #     input_image_path=img_path,
-    #     input_json_path=output_json_path,
-    #     output_image_path=output_image_path
-    # )
+    stem = Path(img_path).stem
+    output_image_path = str(PROJECT_ROOT / "data" / "output" / f"{stem}_transformed.png")
 
-    split_images(img_path, tile_size)
-    select_images(img_path, tile_size)
+    transformed_img_path = transform_image(
+        input_image_path=img_path,
+        input_json_path=output_json_path,
+        output_image_path=output_image_path
+    )
+
+    output_dir = split_images(transformed_img_path, tile_size)
+    #select_images(transformed_img_path, tile_size)
+    clean_tiles(output_dir, 0.15)
 
     # 记录处理耗时
     elapsed = time.time() - start_time

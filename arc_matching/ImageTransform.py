@@ -80,3 +80,36 @@ def transform_line_parameters(m, c, src_points, dst_points, image_width):
     new_c = -transformed_line[2]
 
     return new_m, new_c
+
+
+def transform_line_params(m, c, H):
+    """
+    将直线参数(m,c)根据单应性矩阵H进行变换
+
+    参数:
+        m: 原始直线斜率
+        c: 原始直线截距
+        H: 3x3单应性矩阵
+        image_width: 原始图像宽度（用于选择参考点）
+
+    返回:
+        (m_prime, c_prime): 变换后的直线参数
+    """
+    # 方法1：使用直线方程变换（更精确）
+    # 将直线方程转换为一般式：mx - y + c = 0 → [m, -1, c]
+    line_vector = np.array([m, -1, c])
+
+    # 计算变换后的直线：l' = H^{-T} * l
+    H_inv_T = np.linalg.inv(H).T
+    transformed_line = H_inv_T @ line_vector
+
+    # 从一般式转换回斜截式
+    a, b, c_prime = transformed_line
+    if abs(b) > 1e-6:  # 避免除以零
+        m_prime = -a / b
+        c_prime = -c_prime / b
+    else:  # 垂直线情况
+        m_prime = float('inf')
+        c_prime = -c_prime / a  # 此时c_prime表示x截距
+
+    return m_prime, c_prime
