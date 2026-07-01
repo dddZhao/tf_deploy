@@ -1,6 +1,12 @@
-model
+model/*
+!model/.gitkeep
+.DS_Store
+.cache/
+__pycache__/
+*.pyc
 data
 *.engine
+*.onnx
 *.zip
 *.json
 *.png

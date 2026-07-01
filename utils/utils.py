@@ -2,18 +2,38 @@ from PIL import Image
 import numpy as np
 import cv2
 import os
+import json
 from datetime import date
 import math
 from typing import Optional, Tuple
 import shutil
 import logging
+from pathlib import Path
+
+_CACHE_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    ".cache"
+)
+os.environ.setdefault("XDG_CACHE_HOME", _CACHE_DIR)
+os.environ.setdefault(
+    "MPLCONFIGDIR",
+    os.path.join(_CACHE_DIR, "matplotlib")
+)
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-from matplotlib.font_manager import FontProperties
-font = FontProperties(fname='SimHei.ttf')
+from matplotlib.font_manager import FontProperties, fontManager
+_FONT_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "SimHei.ttf"
+)
+if os.path.exists(_FONT_PATH):
+    fontManager.addfont(_FONT_PATH)
+font = FontProperties(fname=_FONT_PATH if os.path.exists(_FONT_PATH) else None)
+plt.rcParams['font.sans-serif'] = [font.get_name(), 'Arial Unicode MS', 'Microsoft YaHei']
+plt.rcParams['axes.unicode_minus'] = False
 
-from .trt import *
+from .runtime import *
 from .utils_Selectimg import *
 from .paths import *
 from .cn_cv import *
@@ -21,6 +41,21 @@ from .cn_cv import *
 def cv2_imread(file_path):
     cv_img = cv2.imdecode(np.fromfile(file_path,dtype=np.uint8),-1)
     return cv_img
+
+def get_tf_seg_json_for_image(img_path):
+    stem = Path(img_path).stem
+    candidate_stems = [stem]
+
+    for suffix in ("_black_transformed", "_clear_transformed"):
+        if stem.endswith(suffix):
+            candidate_stems.insert(0, f"{stem[:-len(suffix)]}_transformed")
+
+    for candidate_stem in candidate_stems:
+        candidate = get_output_json_path(candidate_stem, suffix="_seg")
+        if Path(candidate).exists():
+            return candidate
+
+    return get_output_json_path(img_path, suffix="_seg")
 
 def tunnelface_segmentation(input_file):
     # 路径设置
@@ -53,6 +88,8 @@ def tunnelface_segmentation(input_file):
             result["shapes"].append(shape)
     with open(output_json_path, 'w') as f:
         json.dump(result, f)
+    if not result["shapes"]:
+        raise ValueError(f"未检测到有效掌子面轮廓: {input_file}")
     return output_json_path
 
 def show_seg(img_path):
@@ -119,6 +156,8 @@ def split_images(
     tile_metadata = {}
     output_dir = get_output_dir(img_path)
     base_name = Path(img_path).stem
+    for old_tile in output_dir.glob("*.jpg"):
+        old_tile.unlink()
 
     for row in range(num_rows):
         for col in range(num_columns):
@@ -133,10 +172,9 @@ def split_images(
             cropped_image.save(save_path)
             tile_metadata[filename] = (row, col)
 
-    # 保存元数据到JSON
-    #metadata_path = output_dir / f"{base_name}_tile_metadata.json"
-    #with open(metadata_path, 'w') as f:
-    #    json.dump(tile_metadata, f)
+    metadata_path = output_dir / f"{base_name}_tile_metadata.json"
+    with open(metadata_path, 'w') as f:
+        json.dump(tile_metadata, f)
     return output_dir
 
 # filter the images in the TF
@@ -148,6 +186,8 @@ def select_images(
     input_folder = get_output_dir(img_path)
     output_folder = Path(f"{input_folder}_select")
     output_folder.mkdir(parents=True, exist_ok=True)
+    for old_tile in output_folder.glob("*.jpg"):
+        old_tile.unlink()
 
     # 1. 加载切片元数据
     base_name = Path(img_path).stem
@@ -160,9 +200,7 @@ def select_images(
         raise FileNotFoundError(f"切片元数据未找到: {metadata_path}")
 
     # 2. 加载JSON标注
-    json_path = img_path.replace("_black_transformed.png", ".png")
-    json_path = get_output_json_path(json_path, suffix="_seg")
-    #json_path = img_path.replace(".png", "_seg.json")
+    json_path = get_tf_seg_json_for_image(img_path)
     try:
         json_data = parse_json(json_path)
     except Exception as e:
@@ -201,6 +239,7 @@ def select_images(
                 break
 
     logging.info(f"筛选完成: {selected_count}/{total_valid_images} 图片被选中")
+    return selected_count
 
 def classify_posui(
         img_path: str,
@@ -220,16 +259,19 @@ def classify_posui(
     except FileNotFoundError:
         raise FileNotFoundError(f"切片元数据未找到: {metadata_path}")
 
-    engine = load_engine(model_path)
     original_image = cv2_imread(img_path)
     original_height, original_width = original_image.shape[:2]
 
     shapes = []
     tile_width, tile_height = tile_size
     missing_metadata = 0
+    image_files = sorted(img_dir.glob("*.jpg"))
+
+    if image_files:
+        engine = load_engine(model_path)
 
     # 2. 处理每个图像文件
-    for img_file in img_dir.glob("*.jpg"):
+    for img_file in image_files:
         # 获取文件名（不含路径）
         filename = img_file.name
 
@@ -277,6 +319,7 @@ def classify_posui(
         json.dump(json_data, f, indent=2)
 
     logging.info(f"结构分类完成，共处理{len(shapes)}个切片")
+    return len(shapes)
 
 LABEL_MAP = {
     0: ((139, 250, 146), 'Block', '完整结构'),
@@ -293,7 +336,7 @@ def show_result_posui(
     # 添加错误处理以防文件丢失
     try:
         json_path = get_output_json_path(img_path, "_structure")
-        tf_json_path = get_output_json_path(img_path, "_seg")
+        tf_json_path = get_tf_seg_json_for_image(img_path)
 
         with open(json_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
@@ -353,7 +396,7 @@ def show_result_posui(
     patches.append(mpatches.Patch(facecolor='none', edgecolor=(0, 1, 0), label='隧道面轮廓'))
 
     # 4. 设置字体和图例
-    plt.rcParams['font.sans-serif'] = ['SimHei', 'Arial Unicode MS', 'Microsoft YaHei']
+    plt.rcParams['font.sans-serif'] = [font.get_name(), 'Arial Unicode MS', 'Microsoft YaHei']
     ax.legend(loc='upper right', handles=patches)
     ax.axis('off')
 
@@ -379,7 +422,7 @@ def show_result_water(
 ) -> None:
 
     model_path = os.path.join(get_project_root(), "model", "seg_water.engine")
-    json_path = get_output_json_path(img_path, "_seg")
+    json_path = get_tf_seg_json_for_image(img_path)
     output_path = get_output_path(img_path, "_water")
 
     engine = load_engine(model_path)
@@ -431,7 +474,7 @@ def show_result_water(
     ]
     patches.append(mpatches.Patch(facecolor='none', edgecolor=(0, 1, 0), label='隧道面轮廓'))
 
-    plt.rcParams['font.sans-serif'] = ['SimHei']
+    plt.rcParams['font.sans-serif'] = [font.get_name(), 'Arial Unicode MS', 'Microsoft YaHei']
     ax.legend(loc='upper right', handles=patches)
     ax.axis('off')
 

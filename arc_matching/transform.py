@@ -32,11 +32,20 @@ def transform_image(input_image_path, input_json_path, output_image_path,
     with open(input_json_path, 'r') as f:
         annotation = json.load(f)
 
-    # 提取所有形状的points
+    original_image = cv2_imread(input_image_path)
+    original_height, original_width = original_image.shape[:2]
+    resized_height, resized_width = image.shape[:2]
+    width_ratio = resized_width / original_width
+    height_ratio = resized_height / original_height
+
+    # 提取所有形状的points，并统一到 resize 后图像坐标系
     shape_points = []
     for shape in annotation["shapes"]:
         if "points" in shape:
-            shape_points.append(np.array(shape["points"], dtype=np.float32))
+            scaled_points = np.array(shape["points"], dtype=np.float32)
+            scaled_points[:, 0] *= width_ratio
+            scaled_points[:, 1] *= height_ratio
+            shape_points.append(scaled_points)
 
     # 4. 执行处理流程（均匀分布点、检测底边等）
     uniform_points = evenly_distribute_points(points, num_points=100)

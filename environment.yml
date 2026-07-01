@@ -1,0 +1,15 @@
+name: tf_deploy
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - numpy<2
+  - pillow
+  - matplotlib
+  - opencv
+  - onnx
+  - scipy
+  - shapely
+  - pip:
+      - onnxruntime
